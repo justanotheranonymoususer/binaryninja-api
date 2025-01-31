@@ -355,6 +355,7 @@ name = "binaryninja"
 version = "0.1.0"
 dependencies = [
  "binaryninjacore-sys",
+ "insta",
  "log",
  "rayon",
  "rstest",
