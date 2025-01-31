@@ -70,7 +70,7 @@ impl BnString {
     }
 
     /// Construct a BnString from an owned const char* allocated by BNAllocString
-    pub(crate) unsafe fn from_raw(raw: *mut c_char) -> Self {
+    pub unsafe fn from_raw(raw: *mut c_char) -> Self {
         Self { raw }
     }
 

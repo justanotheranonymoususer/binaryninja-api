@@ -443,7 +443,7 @@ impl Drop for TypeBuilder {
 
 #[repr(transparent)]
 pub struct Type {
-    pub(crate) handle: *mut BNType,
+    pub handle: *mut BNType,
 }
 
 /// ```no_run
