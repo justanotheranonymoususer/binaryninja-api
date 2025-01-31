@@ -21,6 +21,11 @@ file(GLOB_RECURSE PLUGIN_SOURCES CONFIGURE_DEPENDS
         ${PROJECT_SOURCE_DIR}/Cargo.toml
         ${PROJECT_SOURCE_DIR}/src/*.rs)
 
+# Add UI plugin.
+if(NOT HEADLESS)
+    add_subdirectory(ui)
+endif()
+
 if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(TARGET_DIR ${PROJECT_BINARY_DIR}/target/debug)
     set(CARGO_OPTS --target-dir=${PROJECT_BINARY_DIR}/target)

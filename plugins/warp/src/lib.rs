@@ -185,34 +185,30 @@ pub fn basic_block_guid<A: Architecture, M: FunctionMutability>(
 mod tests {
     use crate::cache::cached_function_guid;
     use binaryninja::binary_view::BinaryViewExt;
-    use binaryninja::headless::Session;
+    use binaryninja::headless::{InitializationOptions, Session};
+    use std::collections::BTreeMap;
     use std::path::PathBuf;
-    use std::sync::OnceLock;
-
-    static INIT: OnceLock<Session> = OnceLock::new();
-
-    fn get_session<'a>() -> &'a Session {
-        // TODO: This is not shared between other test modules, should still be fine (mutex in core now).
-        INIT.get_or_init(|| Session::new().expect("Failed to initialize session"))
-    }
+    use warp::signature::function::FunctionGUID;
 
     #[test]
     fn insta_signatures() {
-        let session = get_session();
+        let session = Session::new_with_opts(InitializationOptions::minimal())
+            .expect("Failed to initialize session");
         let out_dir = env!("OUT_DIR").parse::<PathBuf>().unwrap();
         for entry in std::fs::read_dir(out_dir).expect("Failed to read OUT_DIR") {
             let entry = entry.expect("Failed to read directory entry");
             let path = entry.path();
             if path.is_file() {
                 let view = session.load(&path).expect("Failed to load view");
-                let mut functions = view
+                let functions: BTreeMap<u64, FunctionGUID> = view
                     .functions()
                     .iter()
-                    .map(|f| cached_function_guid(&f, &f.low_level_il().unwrap()))
-                    .collect::<Vec<_>>();
-                functions.sort_by_key(|guid| guid.guid);
-                let snapshot_name =
-                    format!("snapshot_{}", path.file_stem().unwrap().to_string_lossy());
+                    .map(|f| {
+                        let guid = cached_function_guid(&f, &f.low_level_il().unwrap());
+                        (f.start(), guid)
+                    })
+                    .collect();
+                let snapshot_name = path.file_stem().unwrap().to_str().unwrap();
                 insta::assert_debug_snapshot!(snapshot_name, functions);
             }
         }

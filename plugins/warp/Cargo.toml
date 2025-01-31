@@ -27,7 +27,7 @@ tempdir = { version = "0.3.7", optional = true }
 
 [dev-dependencies]
 criterion = "0.5.1"
-insta = { version = "1.38.0", features = ["yaml"] }
+insta = { version = "1.42", features = ["yaml"] }
 
 [features]
 default = ["sigem"]

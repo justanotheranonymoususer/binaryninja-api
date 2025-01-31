@@ -1,6 +1,12 @@
+use crate::cache::{
+    cached_adjacency_constraints, cached_call_site_constraints, cached_function_match,
+    try_cached_function_guid,
+};
+use crate::convert::to_bn_type;
+use crate::{core_signature_dir, user_signature_dir};
 use binaryninja::architecture::Architecture as BNArchitecture;
 use binaryninja::binary_view::{BinaryView, BinaryViewExt};
-use binaryninja::function::Function as BNFunction;
+use binaryninja::function::{Function as BNFunction, FunctionUpdateType};
 use binaryninja::platform::Platform;
 use binaryninja::rc::Guard;
 use binaryninja::rc::Ref as BNRef;
@@ -18,14 +24,7 @@ use warp::r#type::Type;
 use warp::signature::function::{Function, FunctionGUID};
 use warp::signature::Data;
 
-use crate::cache::{
-    cached_adjacency_constraints, cached_call_site_constraints, cached_function_match,
-    try_cached_function_guid,
-};
-use crate::convert::to_bn_type;
-use crate::plugin::on_matched_function;
-use crate::{core_signature_dir, user_signature_dir};
-
+// TODO: I dislike this being here.
 pub static PLAT_MATCHER_CACHE: OnceLock<DashMap<PlatformID, Matcher>> = OnceLock::new();
 
 pub fn cached_function_matcher(function: &BNFunction) {
@@ -42,6 +41,27 @@ pub fn cached_function_matcher(function: &BNFunction) {
     }
 }
 
+// TODO: I think this needs to be removed. Or at the very least, changed to not be so terrible.
+pub fn cached_possible_function_matches(platform: &Platform, guid: &FunctionGUID) -> Vec<Function> {
+    let platform_id = PlatformID::from(platform);
+    let matcher_cache = PLAT_MATCHER_CACHE.get_or_init(Default::default);
+    match matcher_cache.get(&platform_id) {
+        Some(matcher) => match matcher.functions.get(guid) {
+            None => vec![],
+            Some(possible_matches) => possible_matches.value().to_owned(),
+        },
+        None => {
+            let matcher = Matcher::from_platform(platform.to_owned());
+            let possible_matches = match matcher.functions.get(guid) {
+                None => vec![],
+                Some(possible_matches) => possible_matches.value().to_owned(),
+            };
+            matcher_cache.insert(platform_id, matcher);
+            possible_matches
+        }
+    }
+}
+
 // TODO: Maybe just clear individual platforms? This works well enough either way.
 pub fn invalidate_function_matcher_cache() {
     let matcher_cache = PLAT_MATCHER_CACHE.get_or_init(Default::default);
@@ -53,6 +73,7 @@ pub struct Matcher {
     // TODO: Storing the settings here means that they are effectively global.
     // TODO: If we want scoped or view settings they must be moved out.
     pub settings: MatcherSettings,
+    // TODO: This stuff is actually apart of a provider.
     pub functions: DashMap<FunctionGUID, Vec<Function>>,
     pub types: DashMap<TypeGUID, Type>,
     pub named_types: DashMap<String, Type>,
@@ -72,7 +93,7 @@ impl Matcher {
 
         data.extend(user_data);
         let merged_data = Data::merge(data.values().cloned().collect::<Vec<_>>());
-        log::debug!("Loaded signatures: {:?}", data.keys());
+        log::debug!("Loaded signatures: {:#?}", data.keys());
         Matcher::from_data(merged_data)
     }
 
@@ -211,8 +232,9 @@ impl Matcher {
             }
         };
 
-        if let Some(matched_function) = cached_function_match(function, || {
+        let function_matcher = || {
             // We have yet to match on this function.
+            // TODO: This metric is broken, shared blocks will make this broken.
             let function_len = function.highest_address() - function.lowest_address();
             let is_function_trivial = { function_len < self.settings.trivial_function_len };
             let is_function_allowed = {
@@ -224,17 +246,23 @@ impl Matcher {
                 _ if !is_function_allowed => None,
                 Some(matched) if matched.len() == 1 && !is_function_trivial => {
                     resolve_new_types(&matched[0]);
+                    // TODO: Mark for updates here?
                     Some(matched[0].to_owned())
                 }
                 Some(matched) => {
                     let matched_on = self.match_function_from_constraints(function, &matched)?;
                     resolve_new_types(matched_on);
+                    // TODO: Mark for updates here?
                     Some(matched_on.to_owned())
                 }
                 None => None,
             }
-        }) {
-            on_matched_function(function, &matched_function);
+        };
+
+        if cached_function_match(function, function_matcher).is_some() {
+            // We matched on the function, to have the function applier we must mark for updates.
+            // if we expect to run match_function multiple times on a function we should move this elsewhere.
+            function.mark_updates_required(FunctionUpdateType::FullAutoFunctionUpdate);
         }
     }
 
@@ -336,21 +364,6 @@ impl Matcher {
             .filter(|&(count, _)| count >= self.settings.minimum_matched_constraints)
             .and_then(|(_, func)| func)
     }
-}
-
-fn get_data_from_dir(dir: &PathBuf) -> HashMap<PathBuf, Data> {
-    let data_from_entry = |entry: DirEntry| {
-        let path = entry.path();
-        let contents = std::fs::read(path).ok()?;
-        Data::from_bytes(&contents)
-    };
-
-    WalkDir::new(dir)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .filter_map(|e| Some((e.clone().into_path(), data_from_entry(e)?)))
-        .collect()
 }
 
 #[derive(Debug, Clone)]
@@ -521,4 +534,19 @@ impl From<Guard<'_, Platform>> for PlatformID {
     fn from(value: Guard<'_, Platform>) -> Self {
         Self::from(value.as_ref())
     }
+}
+
+fn get_data_from_dir(dir: &PathBuf) -> HashMap<PathBuf, Data> {
+    let data_from_entry = |entry: DirEntry| {
+        let path = entry.path();
+        let contents = std::fs::read(path).ok()?;
+        Data::from_bytes(&contents)
+    };
+
+    WalkDir::new(dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+        .filter_map(|e| Some((e.clone().into_path(), data_from_entry(e)?)))
+        .collect()
 }

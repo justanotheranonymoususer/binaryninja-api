@@ -1,6 +1,8 @@
 use crate::matcher::{Matcher, PlatformID, PLAT_MATCHER_CACHE};
 use binaryninja::binary_view::{BinaryView, BinaryViewExt};
 use binaryninja::command::Command;
+
+// TODO: This command will just load it into the cache, people probably just want to run the matcher after.
 pub struct LoadSignatureFile;
 
 impl Command for LoadSignatureFile {
@@ -43,9 +45,11 @@ impl Command for LoadSignatureFile {
             None => {
                 // We still must uphold `from_platform` in case we are running this before the matcher workflow
                 // is kicked off. Other-wise we only will have the `new_matcher` data.
+                // TODO: What if we _just_ want to run with the new_matcher data?
                 let mut matcher = Matcher::from_platform(platform);
                 matcher.extend_with_matcher(new_matcher);
                 matcher_cache.insert(platform_id, matcher);
+                // TODO: Prompt to run the matcher?
             }
         }
     }

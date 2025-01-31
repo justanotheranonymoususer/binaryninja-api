@@ -16,6 +16,9 @@ use walkdir::WalkDir;
 use warp::signature::Data;
 use warp_ninja::cache::{cached_type_references, register_cache_destructor};
 
+// TODO: Move sigem to another repository. This is so that the seperation between warp plugin and sigem is clear.
+// TODO: It is expected that people build there own tools on top of warp.
+
 #[derive(Parser, Debug)]
 #[command(about, long_about)]
 /// A simple CLI utility to generate WARP signature files headlessly using Binary Ninja.
