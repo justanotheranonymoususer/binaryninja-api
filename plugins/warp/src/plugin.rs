@@ -1,6 +1,7 @@
 use crate::cache::register_cache_destructor;
 
 use crate::matcher::MatcherSettings;
+use crate::plugin::render_layer::HighlightRenderLayer;
 use binaryninja::binary_view::{BinaryView, BinaryViewExt};
 use binaryninja::logger::Logger;
 use binaryninja::rc::Ref;
@@ -14,6 +15,7 @@ mod debug;
 mod ffi;
 mod find;
 mod load;
+mod render_layer;
 mod types;
 mod workflow;
 
@@ -36,6 +38,9 @@ pub extern "C" fn CorePluginInit() -> bool {
 
     // Make sure caches are flushed when the views get destructed.
     register_cache_destructor();
+
+    // Register our highlight render layer.
+    HighlightRenderLayer::register();
 
     workflow::insert_workflow();
 
