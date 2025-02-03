@@ -1,7 +1,7 @@
-use crate::basic_block_guid;
 use crate::cache::{cached_function_guid, insert_cached_function_match, try_cached_function_match};
 use crate::convert::{to_bn_symbol_at_address, to_bn_type};
 use crate::matcher::cached_possible_function_matches;
+use crate::{basic_block_guid, relocatable_regions};
 use binaryninja::basic_block::BasicBlock;
 use binaryninja::function::{Function, NativeBlock};
 use binaryninja::platform::Platform;
@@ -32,7 +32,9 @@ pub extern "C" fn BNWARPGetBasicBlockGUID(basic_block: *mut BNBasicBlock) -> *co
     let Ok(llil) = function.low_level_il() else {
         return std::ptr::null();
     };
-    let basic_block_guid = basic_block_guid(&basic_block, &llil);
+    // TODO: This should be the callers responsibility IMO to get relocatable ranges.
+    let relocatable_regions = relocatable_regions(&function.view());
+    let basic_block_guid = basic_block_guid(&relocatable_regions, &basic_block, &llil);
     let basic_block_guid_str = BnString::new(basic_block_guid.to_string());
     // NOTE: Leak the guid string to be freed by BNFreeString
     BnString::into_raw(basic_block_guid_str)
