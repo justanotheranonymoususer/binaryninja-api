@@ -1,4 +1,3 @@
-use crate::matcher::{Matcher, PlatformID, PLAT_MATCHER_CACHE};
 use binaryninja::binary_view::{BinaryView, BinaryViewExt};
 use binaryninja::command::Command;
 
@@ -32,26 +31,26 @@ impl Command for LoadSignatureFile {
             return;
         };
 
-        let new_matcher = Matcher::from_data(data);
-        log::info!(
-            "Loading signature file with {} functions and {} types...",
-            new_matcher.functions.len(),
-            new_matcher.types.len()
-        );
-        let platform_id = PlatformID::from(platform.as_ref());
-        let matcher_cache = PLAT_MATCHER_CACHE.get_or_init(Default::default);
-        match matcher_cache.get_mut(&platform_id) {
-            Some(mut matcher) => matcher.extend_with_matcher(new_matcher),
-            None => {
-                // We still must uphold `from_platform` in case we are running this before the matcher workflow
-                // is kicked off. Other-wise we only will have the `new_matcher` data.
-                // TODO: What if we _just_ want to run with the new_matcher data?
-                let mut matcher = Matcher::from_platform(platform);
-                matcher.extend_with_matcher(new_matcher);
-                matcher_cache.insert(platform_id, matcher);
-                // TODO: Prompt to run the matcher?
-            }
-        }
+        // let new_matcher = Matcher::from_data(data);
+        // log::info!(
+        //     "Loading signature file with {} functions and {} types...",
+        //     new_matcher.functions.len(),
+        //     new_matcher.types.len()
+        // );
+        // let platform_id = PlatformID::from(platform.as_ref());
+        // let matcher_cache = PLAT_MATCHER_CACHE.get_or_init(Default::default);
+        // match matcher_cache.get_mut(&platform_id) {
+        //     Some(mut matcher) => matcher.extend_with_matcher(new_matcher),
+        //     None => {
+        //         // We still must uphold `from_platform` in case we are running this before the matcher workflow
+        //         // is kicked off. Other-wise we only will have the `new_matcher` data.
+        //         // TODO: What if we _just_ want to run with the new_matcher data?
+        //         let mut matcher = Matcher::from_platform(platform);
+        //         matcher.extend_with_matcher(new_matcher);
+        //         matcher_cache.insert(platform_id, matcher);
+        //         // TODO: Prompt to run the matcher?
+        //     }
+        // }
     }
 
     fn valid(&self, _view: &BinaryView) -> bool {

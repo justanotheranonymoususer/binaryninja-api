@@ -59,13 +59,9 @@ void WARPSidebarWidget::notifyViewLocationChanged(View *view, const ViewLocation
 		// TODO: The sidebar widget will have a function ref prolly, just update it.
 		auto guid = BNWARPGetFunctionGUID(function->m_object);
 		if (!guid)
-		{
-			LogInfo("No GUID for current function");
 			return;
-		}
-		LogInfo("Function GUID: %s", guid);
 
-		LogInfo("Function changed");
+		// TODO: we need to verify function changed.
 		// We have navigated to a new function, we should set the current function.
 		m_matchesWidget->SetCurrentFunction(function);
 		// We should also update the matches duh.
@@ -85,7 +81,7 @@ void WARPSidebarWidget::notifyViewLocationChanged(View *view, const ViewLocation
 
 
 WARPSidebarWidgetType::WARPSidebarWidgetType() :
-	SidebarWidgetType(QImage(":/icons/images/letters/letter-W.png"), "WARP")
+	SidebarWidgetType(QImage(":/icons/images/warp.png"), "WARP")
 {}
 
 
@@ -100,7 +96,6 @@ extern "C" {
 
 	BINARYNINJAPLUGIN bool UIPluginInit()
 	{
-		LogInfo("Initializing WARP UI plugin");
 		Sidebar::addSidebarWidgetType(new WARPSidebarWidgetType());
 		return true;
 	}

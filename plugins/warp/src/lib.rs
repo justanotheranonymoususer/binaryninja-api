@@ -24,9 +24,14 @@ use warp::signature::basic_block::BasicBlockGUID;
 use warp::signature::function::constraints::FunctionConstraints;
 use warp::signature::function::{Function, FunctionGUID};
 
+/// Re-export the warp crate that is used, this is useful for consumers of this crate.
+pub use warp;
+
 pub mod cache;
+pub mod container;
 pub mod convert;
-mod matcher;
+pub mod matcher;
+
 /// Only used when compiled for cdylib target.
 mod plugin;
 
@@ -212,38 +217,4 @@ pub fn relocatable_regions(view: &BinaryView) -> Vec<Range<u64>> {
             end: s.end(),
         })
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::cache::cached_function_guid;
-    use binaryninja::binary_view::BinaryViewExt;
-    use binaryninja::headless::{InitializationOptions, Session};
-    use std::collections::BTreeMap;
-    use std::path::PathBuf;
-    use warp::signature::function::FunctionGUID;
-
-    #[test]
-    fn insta_signatures() {
-        let session = Session::new_with_opts(InitializationOptions::minimal())
-            .expect("Failed to initialize session");
-        let out_dir = env!("OUT_DIR").parse::<PathBuf>().unwrap();
-        for entry in std::fs::read_dir(out_dir).expect("Failed to read OUT_DIR") {
-            let entry = entry.expect("Failed to read directory entry");
-            let path = entry.path();
-            if path.is_file() {
-                let view = session.load(&path).expect("Failed to load view");
-                let functions: BTreeMap<u64, FunctionGUID> = view
-                    .functions()
-                    .iter()
-                    .map(|f| {
-                        let guid = cached_function_guid(&f, &f.low_level_il().unwrap());
-                        (f.start(), guid)
-                    })
-                    .collect();
-                let snapshot_name = path.file_stem().unwrap().to_str().unwrap();
-                insta::assert_debug_snapshot!(snapshot_name, functions);
-            }
-        }
-    }
 }

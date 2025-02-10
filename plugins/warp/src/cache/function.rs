@@ -29,7 +29,6 @@ pub fn clear_function_cache(view: &BinaryView) {
     }
 }
 
-// TODO: The cached function match here might need to remove the function callback.
 pub fn cached_function_match<F>(function: &BNFunction, f: F) -> Option<Function>
 where
     F: Fn() -> Option<Function>,

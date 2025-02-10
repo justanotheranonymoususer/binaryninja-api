@@ -1,6 +1,5 @@
 use crate::cache::{cached_function_guid, insert_cached_function_match, try_cached_function_match};
 use crate::convert::{to_bn_symbol_at_address, to_bn_type};
-use crate::matcher::cached_possible_function_matches;
 use crate::{basic_block_guid, relocatable_regions};
 use binaryninja::basic_block::BasicBlock;
 use binaryninja::function::{Function, NativeBlock};
@@ -117,22 +116,23 @@ pub extern "C" fn BNWARPGetPossibleFunctions(
     let Ok(guid) = FunctionGUID::from_str(guid_str) else {
         return std::ptr::null_mut();
     };
-    let possible_matches = cached_possible_function_matches(&platform, &guid);
-
-    // SAFETY: This is safe, count is an out param expected to be written to.
-    unsafe { *count = possible_matches.len() };
-    let boxed_possible_matches = possible_matches
-        .into_iter()
-        .map(|f| {
-            let boxed_function = Box::new(f);
-            // NOTE: Leak the function to be freed by BNWARPFreeFunctionList
-            Box::into_raw(boxed_function)
-        })
-        .collect();
-    // NOTE: Leak the list to be freed by BNWARPFreeFunctionList
-    let possible_matches_ptr = Box::into_raw(boxed_possible_matches);
-    // SAFETY: This is safe as *mut Box<Function> is equiv to *mut *mut BNWARPFunction
-    possible_matches_ptr as *mut *mut BNWARPFunction
+    return std::ptr::null_mut();
+    // let possible_matches = cached_possible_function_matches(&platform, &guid);
+    //
+    // // SAFETY: This is safe, count is an out param expected to be written to.
+    // unsafe { *count = possible_matches.len() };
+    // let boxed_possible_matches = possible_matches
+    //     .into_iter()
+    //     .map(|f| {
+    //         let boxed_function = Box::new(f);
+    //         // NOTE: Leak the function to be freed by BNWARPFreeFunctionList
+    //         Box::into_raw(boxed_function)
+    //     })
+    //     .collect();
+    // // NOTE: Leak the list to be freed by BNWARPFreeFunctionList
+    // let possible_matches_ptr = Box::into_raw(boxed_possible_matches);
+    // // SAFETY: This is safe as *mut Box<Function> is equiv to *mut *mut BNWARPFunction
+    // possible_matches_ptr as *mut *mut BNWARPFunction
 }
 
 #[no_mangle]

@@ -492,8 +492,7 @@ mod tests {
 
     #[test]
     fn type_conversion() {
-        let session = Session::new_with_opts(InitializationOptions::minimal())
-            .expect("Failed to initialize session");
+        let session = Session::new().expect("Failed to initialize session");
         let out_dir = env!("OUT_DIR").parse::<PathBuf>().unwrap();
         for entry in std::fs::read_dir(out_dir).expect("Failed to read OUT_DIR") {
             let entry = entry.expect("Failed to read directory entry");

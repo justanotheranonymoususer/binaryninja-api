@@ -1,5 +1,4 @@
 use crate::cache::{cached_function, cached_type_references};
-use crate::matcher::invalidate_function_matcher_cache;
 use crate::user_signature_dir;
 use binaryninja::binary_view::BinaryView;
 use binaryninja::command::FunctionCommand;
@@ -58,8 +57,6 @@ impl FunctionCommand for AddFunctionSignature {
             match std::fs::write(&save_file, data.to_bytes()) {
                 Ok(_) => {
                     log::info!("Signature file saved successfully.");
-                    // Force rebuild platform matcher.
-                    invalidate_function_matcher_cache();
                 }
                 Err(e) => log::error!("Failed to write data to signature file: {:?}", e),
             }

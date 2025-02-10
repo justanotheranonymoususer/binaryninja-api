@@ -1,11 +1,10 @@
+use crate::cache::container::cached_containers;
 use crate::cache::{ViewID, FUNCTION_CACHE, GUID_CACHE, MATCHED_FUNCTION_CACHE};
-use crate::matcher::{invalidate_function_matcher_cache, Matcher, PlatformID, PLAT_MATCHER_CACHE};
 use crate::{build_function, cache};
-use binaryninja::binary_view::{BinaryView, BinaryViewExt};
+use binaryninja::binary_view::BinaryView;
 use binaryninja::command::{Command, FunctionCommand};
 use binaryninja::function::Function;
 use binaryninja::ObjectDestructor;
-use warp::signature::function::constraints::FunctionConstraint;
 
 pub struct DebugFunction;
 
@@ -31,52 +30,52 @@ impl FunctionCommand for DebugMatcher {
         };
         let platform = function.platform();
         // Build the matcher every time this is called to make sure we aren't in a bad state.
-        let matcher = Matcher::from_platform(platform);
-        let func = build_function(function, &llil);
-        // TODO: Clean this up.
-        if let Some(possible_matches) = matcher.functions.get(&func.guid) {
-            let print_constraint = |prefix: &str, constraint: &FunctionConstraint| {
-                log::info!(
-                    "    {} {} ({})",
-                    prefix,
-                    constraint
-                        .to_owned()
-                        .symbol
-                        .map(|s| s.name)
-                        .unwrap_or("*".to_string()),
-                    constraint
-                        .guid
-                        .map(|g| g.to_string())
-                        .unwrap_or("*".to_string())
-                );
-            };
-            log::info!("POSSIBLE MATCHES FOR 0x{:x}", function.start());
-            for possible_match in possible_matches.value() {
-                log::info!("{} ({})", possible_match.symbol.name, possible_match.guid);
-                for constraint in &possible_match.constraints.call_sites {
-                    print_constraint("CS ", constraint);
-                }
-                for constraint in &possible_match.constraints.adjacent {
-                    print_constraint("ADJ", constraint);
-                }
-            }
-            let matched_function =
-                matcher.match_function_from_constraints(&function, possible_matches.value());
-            if let Some(matched_function) = matched_function {
-                log::info!(
-                    "MATCHED FUNCTION '{}' FOR 0x{:x}",
-                    matched_function.symbol.name,
-                    function.start(),
-                );
-            } else {
-                log::error!("NO MATCHED FUNCTION FOR 0x{:x}", function.start());
-            }
-        } else {
-            log::error!(
-                "No possible matches found for the function 0x{:x}",
-                function.start()
-            );
-        };
+        // let matcher = Matcher::from_platform(platform);
+        // let func = build_function(function, &llil);
+        // // TODO: Clean this up.
+        // if let Some(possible_matches) = matcher.functions.get(&func.guid) {
+        //     let print_constraint = |prefix: &str, constraint: &FunctionConstraint| {
+        //         log::info!(
+        //             "    {} {} ({})",
+        //             prefix,
+        //             constraint
+        //                 .to_owned()
+        //                 .symbol
+        //                 .map(|s| s.name)
+        //                 .unwrap_or("*".to_string()),
+        //             constraint
+        //                 .guid
+        //                 .map(|g| g.to_string())
+        //                 .unwrap_or("*".to_string())
+        //         );
+        //     };
+        //     log::info!("POSSIBLE MATCHES FOR 0x{:x}", function.start());
+        //     for possible_match in possible_matches.value() {
+        //         log::info!("{} ({})", possible_match.symbol.name, possible_match.guid);
+        //         for constraint in &possible_match.constraints.call_sites {
+        //             print_constraint("CS ", constraint);
+        //         }
+        //         for constraint in &possible_match.constraints.adjacent {
+        //             print_constraint("ADJ", constraint);
+        //         }
+        //     }
+        //     let matched_function =
+        //         matcher.match_function_from_constraints(&function, possible_matches.value());
+        //     if let Some(matched_function) = matched_function {
+        //         log::info!(
+        //             "MATCHED FUNCTION '{}' FOR 0x{:x}",
+        //             matched_function.symbol.name,
+        //             function.start(),
+        //         );
+        //     } else {
+        //         log::error!("NO MATCHED FUNCTION FOR 0x{:x}", function.start());
+        //     }
+        // } else {
+        //     log::error!(
+        //         "No possible matches found for the function 0x{:x}",
+        //         function.start()
+        //     );
+        // };
     }
 
     fn valid(&self, _view: &BinaryView, _function: &Function) -> bool {
@@ -104,15 +103,9 @@ impl Command for DebugCache {
             log::info!("View function guids: {}", cache.cache.len());
         }
 
-        let plat_cache = PLAT_MATCHER_CACHE.get_or_init(Default::default);
-        if let Some(plat) = view.default_platform() {
-            let platform_id = PlatformID::from(plat);
-            if let Some(cache) = plat_cache.get(&platform_id) {
-                log::info!("Platform functions: {}", cache.functions.len());
-                log::info!("Platform types: {}", cache.types.len());
-                log::info!("Platform settings: {:?}", cache.settings);
-            }
-        }
+        cached_containers(view, |c| {
+            log::info!("Container: {:#?}", c);
+        });
     }
 
     fn valid(&self, _view: &BinaryView) -> bool {
@@ -124,7 +117,6 @@ pub struct DebugInvalidateCache;
 
 impl Command for DebugInvalidateCache {
     fn action(&self, view: &BinaryView) {
-        invalidate_function_matcher_cache();
         let destructor = cache::CacheDestructor {};
         destructor.destruct_view(view);
         log::info!("Invalidated all WARP caches...");
